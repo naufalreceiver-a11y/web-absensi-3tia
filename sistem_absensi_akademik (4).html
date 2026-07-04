@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMAK - Absensi Kelas 3TI-A</title>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'DM Sans', sans-serif; }
+    </style>
+</head>
+<body class="min-h-screen w-full bg-slate-50">
+    <header class="p-5 shadow-sm bg-gradient-to-br from-slate-800 to-blue-800">
+        <div class="max-w-6xl mx-auto flex items-center gap-3">
+            <i data-lucide="clipboard-check" class="w-8 h-8 text-white"></i>
+            <h1 class="text-2xl font-bold text-white">SIMAK - Absensi Kelas 3TI-A</h1>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto p-4 mt-2">
+        <!-- Navigation Tabs -->
+        <div class="flex gap-4 mb-6 border-b border-gray-200 overflow-x-auto">
+            <button id="tab-beranda" class="pb-2 px-3 whitespace-nowrap border-b-2 border-blue-800 text-blue-800 font-semibold" onclick="switchTab('beranda')">Beranda</button>
+            <button id="tab-absensi" class="pb-2 px-3 text-gray-500 whitespace-nowrap border-b-2 border-transparent" onclick="switchTab('absensi')">Absensi</button>
+            <button id="tab-riwayat" class="pb-2 px-3 text-gray-500 whitespace-nowrap border-b-2 border-transparent" onclick="switchTab('riwayat')">Riwayat Absen</button>
+            <button id="tab-rekap" class="pb-2 px-3 text-gray-500 whitespace-nowrap border-b-2 border-transparent" onclick="switchTab('rekap')">Rekap Absen</button>
+        </div>
+
+        <div id="panel-beranda" class="block space-y-6">
+            <h2 class="text-2xl font-bold text-gray-800">Dashboard</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100"><p class="text-gray-500 text-sm">Total Mahasiswa</p><p class="text-3xl font-bold text-gray-800" id="dash-students">0</p></div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100"><p class="text-gray-500 text-sm">Mata Kuliah</p><p class="text-3xl font-bold text-gray-800" id="dash-courses">0</p></div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100"><p class="text-gray-500 text-sm">Total Entri Absen</p><p class="text-3xl font-bold text-gray-800" id="dash-records">0</p></div>
+            </div>
+        </div>
+
+        <div id="panel-absensi" class="hidden space-y-4">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div><label class="block mb-1 text-sm font-medium">Mata Kuliah</label><select id="sel-course" onchange="updateLecturer()" class="w-full border rounded-lg p-2.5"></select></div>
+                    <div><label class="block mb-1 text-sm font-medium">Nama Dosen</label><input id="inp-lecturer" type="text" class="w-full border rounded-lg p-2.5 bg-gray-50" readonly></div>
+                    <div><label class="block mb-1 text-sm font-medium">Jenis Pertemuan</label><select id="sel-meeting-type" onchange="toggleTimeFields()" class="w-full border rounded-lg p-2.5"><option value="Online">Online</option><option value="Offline">Offline</option></select></div>
+                    <div><label class="block mb-1 text-sm font-medium">Pertemuan Ke-</label><select id="sel-meeting" class="w-full border rounded-lg p-2.5"></select></div>
+                    <div><label class="block mb-1 text-sm font-medium">Tanggal</label><input id="inp-date" type="date" class="w-full border rounded-lg p-2.5"></div>
+                    <div id="offline-times" class="hidden md:col-span-2 grid md:grid-cols-2 gap-4">
+                        <div><label class="block mb-1 text-sm font-medium">Jam Masuk</label><input id="inp-time-in" type="time" class="w-full border rounded-lg p-2.5"></div>
+                        <div><label class="block mb-1 text-sm font-medium">Jam Keluar</label><input id="inp-time-out" type="time" class="w-full border rounded-lg p-2.5"></div>
+                    </div>
+                    <div class="md:col-span-2"><label class="block mb-1 text-sm font-medium">Keterangan Materi</label><textarea id="inp-material" class="w-full border rounded-lg p-2.5" rows="2"></textarea></div>
+                </div>
+            </div>
+            <div class="overflow-x-auto bg-white rounded-xl shadow-sm border">
+                <table class="w-full text-sm"><thead class="bg-blue-800 text-white"><tr><th class="p-3">No</th><th class="p-3">NIM</th><th class="p-3">Nama</th><th class="p-3">Status</th></tr></thead><tbody id="student-tbody"></tbody></table>
+            </div>
+            <button class="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition" onclick="saveAttendance()">Simpan Absensi</button>
+        </div>
+
+        <div id="panel-riwayat" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl shadow-sm flex gap-4 flex-wrap">
+                <select id="filt-course" class="border rounded-lg p-2.5" onchange="renderRiwayat()"><option value="">Semua Matkul</option></select>
+                <select id="filt-meeting" class="border rounded-lg p-2.5" onchange="renderRiwayat()"><option value="">Semua Pertemuan</option></select>
+                <button onclick="previewPDF()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">Download PDF Absen</button>
+            </div>
+            <div class="overflow-x-auto bg-white rounded-xl shadow-sm border">
+                <table class="w-full text-sm text-left"><thead class="bg-slate-100 border-b"><tr><th class="p-3">Tanggal</th><th class="p-3">Matkul</th><th class="p-3">Keterangan</th><th class="p-3 text-center">Aksi</th></tr></thead><tbody id="riwayat-tbody"></tbody></table>
+            </div>
+        </div>
+
+        <div id="panel-rekap" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl shadow-sm flex gap-2">
+                <button onclick="showRekap('matkul')" class="px-4 py-2 rounded-lg bg-blue-100 text-blue-800 font-medium">Riwayat Matkul</button>
+                <button onclick="showRekap('mhs')" class="px-4 py-2 rounded-lg bg-blue-100 text-blue-800 font-medium">Riwayat Mhs</button>
+            </div>
+            <div id="rekap-content" class="bg-white p-4 rounded-xl shadow-sm border">
+                <p class="text-gray-500">Pilih menu rekap di atas.</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const STUDENTS = [
+            { id: "255520001", name: "ACHMAD FADILAH RIZQI" }, { id: "255520002", name: "AHMAD SYA'RONI" }, { id: "255520004", name: "ALI AL HUSAINI" }, { id: "255520006", name: "ANANDA DWI SAPUTRA" }, { id: "255520008", name: "ANINDHITA AULIA PUTRI" }, { id: "255520009", name: "AZKA HAIKAL FUADI" }, { id: "255520010", name: "BURHANUDIN" }, { id: "255520011", name: "DWI YOVI HAIDAR" }, { id: "255520013", name: "FARHAN ABDULLOH" }, { id: "255520018", name: "MESA GAINSWARA" }, { id: "255520022", name: "MUHAMMAD SYAFIQ LUBABUL FIKRI" }, { id: "255520023", name: "MUHAMMAD TALU" }, { id: "255520024", name: "MUHAMMAD YUSRON SAIFUL JAMIL" }, { id: "255520025", name: "MUZADID THOLIB" }, { id: "255520027", name: "NAUFAL NUR IKHSAN" }, { id: "255520031", name: "SANGADAH" }, { id: "255520032", name: "SIVA RESTIANA" }, { id: "255520034", name: "ULYVIA OKTAVIANI PAJRIAH GUNTARI" }, { id: "255520038", name: "MUHAMMAD FAATIH FIKRUSSYIFA" }, { id: "255520045", name: "ALAN TIO WAHYUDIN" }, { id: "255520056", name: "KHOERUL UMAM" }
+        ];
+        const COURSES = [
+            { code: "KU18110", name: "Islamic Studies 2", lecturer: "Amri Yahya M.Pd." }, { code: "KU22103", name: "Pendidikan Pancasila", lecturer: "Muhammad Mustangin M.Pd." }, { code: "K552203", name: "Aljabar Linier", lecturer: "S. Edj Astar S.E." }, { code: "K552205", name: "Pemrograman WEB", lecturer: "Ahmad Latif M.Kom" }, { code: "K552215", name: "Rekayasa Perangkat Lunak", lecturer: "Kusnana M.Kom" }, { code: "K552112", name: "Jaringan Komputer", lecturer: "Eko Sutrisno M.Pd" }, { code: "K552311", name: "Multimedia", lecturer: "Imam M.Kom" }, { code: "K552210", name: "Sistem Terdistribusi", lecturer: "Slamet Cahyo Edy Sahputro M.Kom" }
+        ];
+        
+        let allRecords = JSON.parse(localStorage.getItem('simak_records') || '[]');
+        let currentAttendance = {};
+        
+        function init() {
+            COURSES.forEach(c => {
+                document.getElementById('sel-course').innerHTML += `<option value="${c.code}">${c.name}</option>`;
+                document.getElementById('filt-course').innerHTML += `<option value="${c.code}">${c.name}</option>`;
+            });
+            for(let i=1; i<=16; i++) {
+                document.getElementById('sel-meeting').innerHTML += `<option value="${i}">Pertemuan ${i}</option>`;
+                document.getElementById('filt-meeting').innerHTML += `<option value="${i}">Pertemuan ${i}</option>`;
+            }
+            document.getElementById('inp-date').valueAsDate = new Date();
+            updateLecturer();
+            resetAbsensi();
+            updateDashboard();
+        }
+
+        function toggleTimeFields() {
+            document.getElementById('offline-times').classList.toggle('hidden', document.getElementById('sel-meeting-type').value !== 'Offline');
+        }
+
+        function updateLecturer() {
+            const code = document.getElementById('sel-course').value;
+            const course = COURSES.find(c => c.code === code);
+            document.getElementById('inp-lecturer').value = course ? course.lecturer : '';
+        }
+
+        function switchTab(tab) {
+            ['beranda', 'absensi', 'riwayat', 'rekap'].forEach(id => {
+                document.getElementById(`panel-${id}`).classList.toggle('hidden', id !== tab);
+                document.getElementById(`tab-${id}`).className = (id === tab) ? 'pb-2 px-3 border-b-2 border-blue-800 text-blue-800 font-semibold' : 'pb-2 px-3 text-gray-500';
+            });
+            if(tab === 'beranda') updateDashboard();
+            if(tab === 'riwayat') renderRiwayat();
+        }
+
+        function updateDashboard() {
+            document.getElementById('dash-students').textContent = STUDENTS.length;
+            document.getElementById('dash-courses').textContent = COURSES.length;
+            document.getElementById('dash-records').textContent = allRecords.length;
+        }
+
+        function resetAbsensi() {
+            currentAttendance = {};
+            STUDENTS.forEach(s => currentAttendance[s.id] = 'Hadir');
+            renderAbsensi();
+        }
+
+        function renderAbsensi() {
+            const tbody = document.getElementById('student-tbody');
+            tbody.innerHTML = '';
+            STUDENTS.forEach((s, i) => {
+                tbody.innerHTML += `<tr><td class="p-3">${i+1}</td><td class="p-3">${s.id}</td><td class="p-3">${s.name}</td><td class="p-3"><select onchange="currentAttendance['${s.id}']=this.value" class="border p-1 rounded"><option>Hadir</option><option>Izin</option><option>Sakit</option><option>Alpha</option></select></td></tr>`;
+            });
+        }
+
+        function saveAttendance() {
+            const courseCode = document.getElementById('sel-course').value;
+            const meeting = document.getElementById('sel-meeting').value;
+            const date = document.getElementById('inp-date').value;
+            
+            if(allRecords.find(r => r.courseCode === courseCode && r.meeting === meeting && r.date === date)) {
+                return alert("Data absensi untuk pertemuan ini sudah ada!");
+            }
+
+            const course = COURSES.find(c => c.code === courseCode);
+            const records = STUDENTS.map(s => ({
+                ...s, 
+                courseCode, 
+                courseName: course.name, 
+                lecturer: course.lecturer, 
+                meeting, 
+                date, 
+                type: document.getElementById('sel-meeting-type').value,
+                status: currentAttendance[s.id], 
+                material: document.getElementById('inp-material').value, 
+                timeIn: document.getElementById('inp-time-in').value, 
+                timeOut: document.getElementById('inp-time-out').value, 
+                timestamp: Date.now()
+            }));
+            
+            allRecords.push(...records);
+            localStorage.setItem('simak_records', JSON.stringify(allRecords));
+            alert("Data tersimpan!");
+            resetAbsensi();
+            switchTab('riwayat');
+        }
+
+        function deleteRecord(timestamp) {
+            if(!confirm("Hapus data pertemuan ini?")) return;
+            allRecords = allRecords.filter(r => r.timestamp !== timestamp);
+            localStorage.setItem('simak_records', JSON.stringify(allRecords));
+            renderRiwayat();
+        }
+
+        function renderRiwayat() {
+            const fc = document.getElementById('filt-course').value;
+            const fm = document.getElementById('filt-meeting').value;
+            const tbody = document.getElementById('riwayat-tbody');
+            tbody.innerHTML = '';
+            
+            const sessions = [...new Set(allRecords.filter(r => (!fc || r.courseCode === fc) && (!fm || r.meeting === fm)).map(r => r.timestamp))].sort((a,b) => b-a);
+            
+            sessions.forEach(ts => {
+                const recs = allRecords.filter(r => r.timestamp === ts);
+                const r = recs[0];
+                tbody.innerHTML += `<tr><td class="p-3">${r.date}</td><td class="p-3">${r.courseName} (P${r.meeting})</td><td class="p-3">${r.material || '-'}</td><td class="p-3"><button onclick="deleteRecord(${ts})" class="text-red-600 font-bold hover:text-red-800">Hapus</button></td></tr>`;
+            });
+        }
+
+        function previewPDF() {
+            const fc = document.getElementById('filt-course').value;
+            const fm = document.getElementById('filt-meeting').value;
+            if(!fc || !fm) return alert("Pilih Matkul dan Pertemuan!");
+            
+            const records = allRecords.filter(r => r.courseCode === fc && r.meeting === fm);
+            if(records.length === 0) return alert("Data tidak ditemukan.");
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const r = records[0];
+
+            // Setup Date
+            const [year, month, day] = r.date.split('-');
+            const dateObj = new Date(year, month - 1, day);
+            const dayName = dateObj.toLocaleDateString('id-ID', { weekday: 'long' });
+            
+            doc.setFontSize(16);
+            doc.text("ABSENSI MAHASISWA 3TI-A", 10, 10);
+            doc.setFontSize(10);
+            doc.text(`Matkul: ${r.courseName}`, 10, 20);
+            doc.text(`Dosen: ${r.lecturer}`, 10, 25);
+            doc.text(`Pertemuan ke: ${r.meeting}`, 10, 30);
+            doc.text(`Hari & Tanggal: ${dayName}, ${r.date}`, 10, 35);
+            doc.text(`Jam: ${r.type === 'Online' ? 'Online' : (r.timeIn || '-') + ' - ' + (r.timeOut || '-')}`, 10, 40);
+            doc.text(`Keterangan Materi: ${r.material}`, 10, 45);
+
+            const body = [];
+            let h=0, i=0, s=0, a=0;
+            const listI = [], listS = [], listA = [];
+
+            // Maintain order as defined in global STUDENTS array
+            STUDENTS.forEach((st, idx) => {
+                const rec = records.find(x => x.id === st.id);
+                const stat = rec ? rec.status : '-';
+                body.push([idx+1, st.id, st.name, stat]);
+                if(stat==='Hadir') h++;
+                else if(stat==='Izin') { i++; listI.push(st.name); }
+                else if(stat==='Sakit') { s++; listS.push(st.name); }
+                else if(stat==='Alpha') { a++; listA.push(st.name); }
+            });
+
+            doc.autoTable({ startY: 55, head: [['No', 'NIM', 'Nama', 'Status']], body: body });
+            let y = doc.lastAutoTable.finalY + 10;
+            doc.text(`Ringkasan: Hadir: ${h} | Izin: ${i} | Sakit: ${s} | Alpha: ${a}`, 10, y);
+            if(listI.length>0) doc.text(`Izin: ${listI.join(', ')}`, 10, y+=7);
+            if(listS.length>0) doc.text(`Sakit: ${listS.join(', ')}`, 10, y+=7);
+            if(listA.length>0) doc.text(`Alpha: ${listA.join(', ')}`, 10, y+=7);
+            
+            doc.save(`Absen_${r.courseName}_P${r.meeting}.pdf`);
+        }
+
+        function showRekap(type) {
+            const div = document.getElementById('rekap-content');
+            if(type==='matkul') {
+                div.innerHTML = `<select onchange="renderMatkulRekap(this.value)" class="border p-2 mb-4 w-full"><option value="">Pilih Matkul</option>${COURSES.map(c=>`<option value="${c.code}">${c.name}</option>`).join('')}</select><button id="btn-pdf-rekap" class="hidden bg-red-600 text-white px-4 py-2 rounded-lg mb-4" onclick="exportRekapToPDF()">Download Rekap PDF</button><div id="matkul-table" class="overflow-x-auto"></div>`;
+            } else {
+                div.innerHTML = `<div class="grid gap-2"><select id="srch-student" class="border p-2">${STUDENTS.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select><select id="srch-course" class="border p-2">${COURSES.map(c=>`<option value="${c.code}">${c.name}</option>`).join('')}</select><button onclick="renderMhsRekap()" class="bg-blue-600 text-white p-2 rounded">Cari</button></div><div id="mhs-result" class="mt-4"></div>`;
+            }
+        }
+
+        function renderMatkulRekap(code) {
+            if(!code) return;
+            document.getElementById('btn-pdf-rekap').classList.remove('hidden');
+            let html = '<table class="w-full text-xs border-collapse border"><thead><tr class="bg-slate-100"><th class="border p-1">NIM</th><th class="border p-1">Nama</th>';
+            for(let i=1;i<=16;i++) html+=`<th class="border p-1">P${i}</th>`;
+            html+='</tr></thead><tbody>';
+            STUDENTS.forEach(s => {
+                html+=`<tr><td class="border p-1">${s.id}</td><td class="border p-1">${s.name}</td>`;
+                for(let i=1;i<=16;i++) {
+                    const rec = allRecords.find(r=>r.id===s.id && r.courseCode===code && r.meeting==i);
+                    html+=`<td class="border p-1 text-center font-bold">${rec ? rec.status.charAt(0) : '-'}</td>`;
+                }
+                html+='</tr>';
+            });
+            document.getElementById('matkul-table').innerHTML = html+'</tbody></table>';
+        }
+
+        window.exportRekapToPDF = function() {
+            const code = document.querySelector('select').value;
+            if(!code) return;
+            const course = COURSES.find(c => c.code === code);
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+            doc.text(`Rekap Absensi: ${course.name}`, 14, 15);
+            const tableData = [];
+            STUDENTS.forEach(s => {
+                const row = [s.id, s.name];
+                for(let i=1; i<=16; i++) {
+                    const rec = allRecords.find(r=>r.id===s.id && r.courseCode===code && r.meeting==i);
+                    row.push(rec ? rec.status.charAt(0) : '-');
+                }
+                tableData.push(row);
+            });
+            const head = [['NIM', 'Nama', ...Array.from({length:16}, (_,i)=>'P'+(i+1))]];
+            doc.autoTable({ startY: 20, head, body: tableData, styles: { fontSize: 8 } });
+            doc.save(`Rekap_${course.name}.pdf`);
+        }
+
+        function renderMhsRekap() {
+            const id = document.getElementById('srch-student').value;
+            const code = document.getElementById('srch-course').value;
+            const student = STUDENTS.find(s => s.id === id);
+            const res = allRecords.filter(r => r.id === id && r.courseCode === code).sort((a,b) => a.meeting - b.meeting);
+            let html = `<h3 class="font-bold mb-2">Riwayat ${student.name}</h3>`;
+            if(res.length === 0) html += `<p>Data tidak ditemukan.</p>`;
+            else {
+                html += res.map(r => `<div class="p-2 border-b">Pertemuan ${r.meeting} (${r.date}): <strong>${r.status}</strong></div>`).join('');
+            }
+            document.getElementById('mhs-result').innerHTML = html;
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
